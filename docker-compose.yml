@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dbmentor
+      POSTGRES_PASSWORD: dbmentor
+      POSTGRES_DB: dbmentor
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbmentor-postgres:/var/lib/postgresql/data
+
+volumes:
+  dbmentor-postgres:

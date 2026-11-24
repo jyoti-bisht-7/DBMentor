@@ -1,0 +1,6 @@
+{"tokens":["Passengers","book","tickets","for","trains","."],"tags":["B-ENTITY","O","B-ENTITY","O","B-ENTITY","O"]}
+{"tokens":["A","passenger","has","a","name","and","email","."],"tags":["B-ENTITY","I-ENTITY","O","O","B-ATTRIBUTE","O","B-ATTRIBUTE","O"]}
+{"tokens":["Doctors","treat","patients","at","hospitals","."],"tags":["B-ENTITY","O","B-ENTITY","O","B-ENTITY","O"]}
+{"tokens":["Students","enroll","in","courses","during","semesters","."],"tags":["B-ENTITY","O","O","B-ENTITY","O","B-ENTITY","O"]}
+{"tokens":["Customers","place","orders","containing","products","."],"tags":["B-ENTITY","O","B-ENTITY","O","B-ENTITY","O"]}
+{"tokens":["Banks","manage","clients","with","accounts","and","transactions","."],"tags":["B-ENTITY","O","B-ENTITY","O","B-ENTITY","O","B-ENTITY","O"]}

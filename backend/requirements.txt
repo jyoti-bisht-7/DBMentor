@@ -1,0 +1,8 @@
+# Optional local inference backend. The API runs in rules mode without these packages.
+transformers>=4.44,<5
+huggingface-hub>=0.34.0,<1.0
+torch>=2.3
+sentencepiece>=0.2
+datasets>=2.20,<4
+accelerate>=0.33,<2
+numpy>=1.26,<3

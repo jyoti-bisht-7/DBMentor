@@ -1,0 +1,16 @@
+NLP service :
+
+New-Item -ItemType Directory -Force 'D:\huggingface-cache\hub' | Out-Null
+$env:SQL_MODEL_TYPE = 'spider_seq2seq'
+$env:HF_HOME = 'D:\huggingface-cache'
+$env:HF_HUB_CACHE = 'D:\huggingface-cache\hub'
+python backend\nlp-service.py
+
+
+Backend :
+
+$env:DATABASE_URL='postgresql://postgres:13572468@127.0.0.1:5432/postgres'
+$env:NLP_URL='http://127.0.0.1:8001'
+$env:LOG_LEVEL='info'
+$env:NLP_TIMEOUT_MS='300000'
+npm.cmd start --prefix backend

@@ -1,0 +1,172 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * DBMentor design system — earthy, colorful, and natural.
+ * Inspired by the reference palette: deep green, sage, cream, and warm yellow.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-surface3: var(--surface3);
+  --color-edge: var(--edge);
+  --color-edge2: var(--edge2);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-dim: var(--dim);
+  --color-cyan: var(--cyan);
+  --color-cyanink: var(--cyanink);
+  --color-amber: var(--amber);
+  --color-violet: var(--violet);
+  --color-rose: var(--rose);
+  --color-mint: var(--mint);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  --surface: #123b35;
+  --surface2: #164a41;
+  --surface3: #4d774e;
+  --edge: #537465;
+  --edge2: #9dc88d;
+  --ink: #fffdf7;
+  --mute: #f5f7ed;
+  --dim: #fffdf7;
+
+  --cyan: #b8e3a5;
+  --cyanink: #164a41;
+  --amber: #f1b24a;
+  --violet: #d7bcff;
+  --rose: #ffc7b8;
+  --mint: #eaf3e6;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface3);
+  --card-foreground: var(--ink);
+  --popover: var(--surface2);
+  --popover-foreground: var(--ink);
+  --primary: var(--amber);
+  --primary-foreground: var(--surface);
+  --secondary: var(--surface3);
+  --secondary-foreground: var(--surface);
+  --muted: var(--surface2);
+  --muted-foreground: var(--mute);
+  --accent: color-mix(in oklab, var(--cyan) 24%, var(--surface2));
+  --accent-foreground: var(--ink);
+  --destructive: var(--rose);
+  --destructive-foreground: var(--surface);
+  --border: var(--edge);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: var(--cyan);
+}
+
+@utility dotgrid {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--ink) 24%, transparent) 1px,
+    transparent 1.6px
+  );
+  background-size: 24px 24px;
+}
+
+@utility panel {
+  background-color: color-mix(in oklab, var(--surface3) 80%, transparent);
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+@utility landing-button {
+  border-radius: 12px;
+  background-color: var(--amber);
+  color: var(--cyanink);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--ink) 30%, transparent),
+    0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+@utility module-scale {
+  font-weight: 500;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-step-in {
+  animation: step-in 0.45s ease both;
+}
+
+@utility animate-card-in {
+  animation: card-in 0.45s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--cyan) 30%, transparent);
+  }
+}

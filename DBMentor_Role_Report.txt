@@ -1,0 +1,190 @@
+DBMENTOR ROLE REPORT
+Natural Language to SQL Generation
+Dashboard, UI/UX
+
+TASK A - RELEVANT CODE FILES
+
+No single folder contains all work for this role. The implementation is divided across the frontend, API, and NLP service.
+
+Primary frontend files:
+- src/routes/nl-query.jsx
+  Main Natural Language to SQL dashboard page.
+- src/lib/dbmentor.js
+  API calls, active-schema persistence, SQL formatting, and SQL tokenization.
+- src/components/SqlEditor.jsx
+  SQL editor and syntax highlighting.
+- src/components/QueryLabPanel.jsx
+  Editable SQL editor, result handling, and generated-query handoff.
+- src/components/ResultsGrid.jsx
+  Query result table for columns and rows.
+- src/routes/query-lab.jsx
+  Query Lab page container.
+- src/components/TopBar.jsx
+  Navigation between Schema, Query Lab, and NL-to-SQL.
+- src/styles.css
+  Dashboard theme and shared UI styles.
+
+Backend and NLP files:
+- backend/nlp-service.py
+  NL-to-SQL generation, SQL explanations, schema-aware validation, caching, and transformer/rules fallback.
+- backend/index.js
+  API endpoints, PostgreSQL execution, input validation, read-only restrictions, and NLP forwarding.
+- backend/requirements.txt
+  Python ML dependencies.
+- backend/package.json
+  Node backend dependencies.
+- docker-compose.yml
+  PostgreSQL development database.
+- backend/README.md
+  Backend setup and endpoint documentation.
+
+src/routeTree.gen.ts is framework-generated route code and should not be manually edited.
+
+
+TASK B - FUNCTIONALITY AND TECHNICAL EXPLANATION
+
+
+1. Natural-language question interface
+
+What is implemented:
+- A textarea for entering database questions.
+- A Convert to SQL button.
+- Loading states and schema/generation errors.
+- Automatic loading of the active database schema.
+- A numbered, beginner-friendly explanation of the generated SQL.
+
+Frontend implementation:
+src/routes/nl-query.jsx maintains the question, generated SQL, explanation, loading state, and errors using React state. It loads the active schema from PostgreSQL through the API or browser local storage.
+
+Backend implementation:
+The frontend sends the question and schema to POST /api/v1/sql/generate. backend/index.js validates the input and forwards it to the Python NLP service.
+
+Technology reasoning:
+- React is suitable because the page has several interdependent states: busy, error, generated SQL, and explanation.
+- TanStack Router provides routing and a clear /nl-query URL.
+- Tailwind CSS provides consistent spacing, typography, responsive layout, and the dashboard theme.
+- Express keeps HTTP handling, validation, logging, and PostgreSQL integration in one lightweight API layer.
+
+
+2. NL-to-SQL generation
+
+What is implemented:
+- SQL generation based on the active schema.
+- Verification that generated tables and columns belong to the active schema.
+- A Hugging Face Transformer model for text-to-SQL generation.
+- An automatic schema-aware rules fallback when the model is unavailable.
+- SQL result caching for repeated questions.
+
+Frontend implementation:
+src/lib/dbmentor.js sends POST /api/v1/sql/generate with the question and schema. The returned SQL is placed in the SQL display and sent for explanation.
+
+Backend implementation:
+The Python function english_to_sql() is in backend/nlp-service.py at line 595. It is the schema-aware rules fallback that converts a natural-language question into SQL using the active schema.
+
+The Python service in backend/nlp-service.py:
+1. Serializes the question and active-schema tables.
+2. Calls sql_from_seq2seq() at line 456 when the configured T5/Spider model is selected.
+3. Extracts and normalizes a generated SELECT statement.
+4. Calls validate_sql_tables() at line 523 to verify table and column references.
+5. Calls english_to_sql() at line 595 as fallback generation when transformer inference fails or rules mode is configured.
+6. Caches identical question/schema combinations.
+
+The Node API does not define the rules function. It defines POST /api/v1/sql/generate at line 541 in backend/index.js, receives the question and schema, and forwards them to the Python NLP service.
+
+Technology reasoning:
+- Python and Hugging Face Transformers are used because text-to-SQL model inference, tokenizers, and PyTorch are available in that ecosystem.
+- T5/Spider is appropriate for text-to-SQL because it is trained to convert natural-language questions into SQL.
+- Schema-aware rules provide deterministic fallback behavior when a model cannot be downloaded or loaded.
+- Caching avoids expensive model execution for repeated questions.
+- Schema validation prevents SQL references that are outside the active database structure.
+
+
+3. SQL explanation
+
+What is implemented:
+- A structured explanation is displayed below the generated SQL.
+- Each explanation step is labeled with an SQL keyword or concept.
+- The explanation covers SELECT, FROM, joins, WHERE, grouping, ordering, and limits.
+- Explanation failure is shown without hiding the successfully generated SQL.
+
+Frontend implementation:
+src/routes/nl-query.jsx calls explainSqlFromApi() and renders each explanation item as an ordered numbered card.
+
+Backend implementation:
+POST /api/v1/sql/explain receives the SQL and original question. sql_to_story() in backend/nlp-service.py at line 821 parses the SQL and produces clause-by-clause beginner-friendly text.
+
+backend/index.js also provides parsed SQL details and additional optimization hints through POST /api/v1/sql/explain.
+
+Technology reasoning:
+- Regex and SQL-structure parsing are used instead of a generative model because they can accurately identify the clauses present in the actual SQL.
+- This is more reliable for educational explanations and avoids inventing clauses that do not exist.
+- Numbered frontend cards improve readability and help beginners understand the SQL in an ordered way.
+
+
+4. SQL syntax highlighting
+
+What is implemented:
+- SQL keywords, strings, numbers, and operators receive separate colors.
+- Line numbers appear in the editor.
+- Highlighted SQL is aligned beneath a transparent-text textarea.
+
+Frontend implementation:
+src/components/SqlEditor.jsx uses tokenizeSql() from src/lib/dbmentor.js. The SQL is split into categorized tokens and rendered with theme colors.
+
+Technology reasoning:
+- A custom tokenizer is lightweight and does not require a large code-editor dependency.
+- It provides syntax highlighting while preserving a simple native textarea.
+- It is suitable for educational SQL and the fixed dashboard layout.
+
+
+5. Query execution and Query Lab handoff
+
+What is implemented:
+- Generated SQL can be sent from the NL page to Query Lab.
+- The SQL remains available during navigation through browser sessionStorage.
+- Query Lab loads the SQL into an editable editor.
+- The user can modify and execute the SQL.
+- Execution errors are displayed in the editor.
+- Read-only SELECT execution is enforced.
+
+Frontend implementation:
+- src/routes/nl-query.jsx stores the generated SQL and navigates to /query-lab.
+- src/components/QueryLabPanel.jsx restores it, edits it, and sends it to /api/v1/sql/execute.
+- src/components/SqlEditor.jsx provides the editor and Run button.
+
+Backend implementation:
+backend/index.js validates that the statement:
+- Begins with SELECT.
+- Contains only one statement.
+- Does not include insert, update, delete, DDL, or administrative commands.
+
+PostgreSQL runs it inside a read-only transaction using the selected schema as the search path.
+
+Technology reasoning:
+- sessionStorage keeps the generated query in the browser without permanently saving it.
+- PostgreSQL is used because the project needs real schema isolation and actual query execution rather than simulated results.
+- SELECT-only enforcement reduces the risk of accidental or malicious database modification.
+- Read-only transactions provide an additional database-level safety barrier.
+
+
+6. Query result grid
+
+What is implemented:
+- Column headers, row numbers, row count, and execution time.
+- NULL and object formatting.
+- Numeric right alignment.
+- Sticky headers and row indices.
+- Empty-result and no-query states.
+
+Frontend implementation:
+src/components/ResultsGrid.jsx converts backend column and row arrays into an accessible HTML table.
+
+Technology reasoning:
+- A native table is accessible and does not require a heavy grid library.
+- Sticky headers and horizontal scrolling improve usability for wider database schemas.
+- Plain React and CSS keep the dashboard lightweight and easy to maintain.
+
+
+ROLE SUMMARY
+
+The role is the Dashboard UI/UX for Natural Language to SQL generation. Users enter a natural-language question, receive schema-aware SQL, understand how it is constructed, edit it, safely execute it in PostgreSQL, and inspect the returned rows.

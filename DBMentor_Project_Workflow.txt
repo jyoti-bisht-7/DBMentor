@@ -1,0 +1,1318 @@
+DBMentor: Complete Project Workflow
+==================================
+
+Project purpose
+---------------
+
+DBMentor is a database-learning application that turns natural-language requirements into:
+
+1. A normalized relational schema
+2. PostgreSQL DDL
+3. An interactive ER diagram
+4. Generated SQL
+5. Executable SQL queries
+6. Beginner-friendly SQL explanations
+7. Query execution plans and optimization suggestions
+
+The project is divided into a React frontend, a Node.js API, a Python NLP service,
+and PostgreSQL.
+
+
+1. HIGH-LEVEL ARCHITECTURE
+==========================
+
+React + TanStack frontend
+http://localhost:8080
+          |
+          | HTTP JSON
+          v
+Express Node API
+http://127.0.0.1:8000
+  - Validates HTTP requests
+  - Calls the NLP service
+  - Persists schemas
+  - Executes read-only SELECT queries
+          |
+          +---------------- HTTP ----------------+
+          |                                      |
+          v                                      v
+Python NLP service                     PostgreSQL
+http://127.0.0.1:8001                 docker-compose
+  - Schema generation                   port 5432
+  - Natural-language SQL
+  - SQL explanations and fallbacks
+
+The frontend is responsible for presentation and interaction.
+The Express API acts as the security and persistence boundary.
+The Python service performs language-model or rules-based inference.
+PostgreSQL stores schemas and executes SQL.
+
+
+2. TECHNOLOGY STACK AND REASONING
+=================================
+
+2.1 React
+---------
+
+The project uses React 19, as listed in package.json.
+
+React is used because the application has many interactive UI states:
+
+- Schema input
+- DDL editing
+- Drag-and-drop ER table cards
+- Zoom controls
+- SQL editors
+- Query results
+- Schema synchronization across routes
+
+Important components include:
+
+- src/components/ErCanvas.jsx
+- src/components/QueryLabPanel.jsx
+- src/components/TopBar.jsx
+- src/components/SqlEditor.jsx
+- src/components/ResultsGrid.jsx
+
+React's component model keeps these features isolated and reusable.
+
+
+2.2 TanStack Start
+------------------
+
+TanStack Start provides:
+
+- Full-stack React application support
+- File-based routing
+- Server entry integration
+- Vite integration
+- Cloudflare-compatible Nitro builds
+
+TanStack Start is suitable because it integrates application routing, server
+behavior, React rendering, and build tooling in one ecosystem.
+
+
+2.3 TanStack Router
+-------------------
+
+TanStack Router provides the application routes:
+
+- /: Landing page
+- /workspace: Schema generation and ER diagram workspace
+- /nl-query: Natural-language-to-SQL page
+- /query-lab: SQL editor and result grid
+
+It also provides:
+
+- Navigation
+- Route metadata
+- Root layouts
+- 404 handling
+- A route context
+- Scroll restoration
+
+The router is configured in src/router.tsx.
+The generated route tree is src/routeTree.gen.ts.
+
+
+2.4 TanStack Query
+------------------
+
+TanStack Query is initialized in src/router.tsx and provided by
+src/routes/__root.tsx.
+
+The project uses it as the TanStack ecosystem's client-side data and asynchronous
+state infrastructure. Much of the current API communication is also implemented
+directly with fetch, but TanStack Query remains available as shared application
+infrastructure.
+
+
+2.5 Vite
+--------
+
+Vite is used for:
+
+- Fast development-server startup
+- Hot module replacement
+- Tailwind compilation
+- React Fast Refresh
+- TypeScript path resolution
+- Production bundling
+
+The configuration is in vite.config.ts.
+
+The frontend development server is explicitly configured to listen on port 8080.
+
+
+2.6 Tailwind CSS 4
+------------------
+
+Tailwind CSS provides layout and visual styling.
+
+The custom design uses:
+
+- Dark teal surfaces
+- Amber highlights
+- Mint, cyan, violet, and rose relationship colors
+- Dot-grid ER canvas backgrounds
+- Monospace database labels
+- Rounded technical cards
+
+Tailwind was chosen to provide a consistent database-IDE visual language without
+a separate CSS framework or component site.
+
+
+2.7 Radix UI and Supporting Libraries
+-------------------------------------
+
+Radix UI provides accessible UI primitives for controls such as:
+
+- Dialogs
+- Tooltips
+- Tabs
+- Select menus
+- Dropdown menus
+- Popovers
+- Accordions
+- Sidebars
+
+Lucide provides icons.
+Class utilities such as clsx and tailwind-merge help create conditional styles.
+
+
+2.8 Express 5
+-------------
+
+Express exposes the backend API.
+
+The API server is implemented in backend/index.js.
+
+Express is appropriate because:
+
+- The project needs a small set of REST endpoints
+- JSON request parsing is straightforward
+- CORS middleware is easy to configure
+- PostgreSQL pool integration is simple
+- It uses JavaScript, which fits the frontend ecosystem
+- It provides clear HTTP middleware and error handling
+
+
+2.9 PostgreSQL
+--------------
+
+PostgreSQL 16 is configured through docker-compose.yml.
+
+PostgreSQL is used for:
+
+- Schema persistence
+- Table creation
+- Foreign keys
+- Sample data
+- Query execution
+- Read-only SQL validation
+- Data isolation between generated schemas
+- Schema activation history
+
+PostgreSQL was selected over an in-browser database because it:
+
+- Supports real transaction semantics
+- Supports real PostgreSQL types
+- Validates SQL syntax
+- Executes joins and aggregations
+- Demonstrates a production database workflow
+- Keeps data available after page refreshes
+
+
+2.10 Python NLP Service
+-----------------------
+
+The Python service is implemented in backend/nlp-service.py.
+
+It uses Python's standard-library HTTP server and therefore does not require
+FastAPI or Flask for this use case.
+
+Python was used because:
+
+- Hugging Face Transformers is mature on Python
+- PyTorch has native Python support
+- Hugging Face datasets and training scripts use Python
+- Model-cache handling is simple
+- Model inference can run independently of the Node API
+
+
+2.11 Hugging Face Transformers and PyTorch
+------------------------------------------
+
+The project uses Hugging Face Transformers and PyTorch for:
+
+- Model loading
+- Tokenization
+- Seq2seq text generation
+- Token classification
+- Sequence classification
+- Model inference
+- Model training
+
+The dependencies are defined in backend/requirements.txt.
+
+
+3. APPLICATION STARTUP
+=====================
+
+3.1 PostgreSQL startup
+----------------------
+
+Command:
+
+docker compose up -d postgres
+
+This starts a PostgreSQL container with:
+
+User: dbmentor
+Password: dbmentor
+Database: dbmentor
+Port: 5432
+
+The dbmentor-postgres Docker volume makes schema and data changes persistent across
+container restarts.
+
+
+3.2 Python NLP service startup
+------------------------------
+
+Command:
+
+python backend/nlp-service.py
+
+The service starts on:
+
+http://127.0.0.1:8001
+
+Models load lazily on the first matching request rather than at process startup.
+This is important because:
+
+- The application starts more quickly
+- SQL models can require several gigabytes of RAM
+- Unused models do not consume resources
+- A fallback remains available if model loading fails
+
+
+3.3 Node API startup
+--------------------
+
+Command:
+
+npm.cmd start --prefix backend
+
+This starts backend/index.js on port 8000.
+
+The API reads:
+
+- DATABASE_URL
+- NLP_URL
+- Optional NLP_TIMEOUT_MS
+- Optional PGSSL
+- Optional FRONTEND_ORIGIN
+
+
+3.4 Frontend startup
+--------------------
+
+Command:
+
+npm.cmd run dev
+
+The frontend communicates with:
+
+http://127.0.0.1:8000
+
+The API location can be changed using VITE_API_URL.
+
+
+4. MODELS USED BY THE PROJECT
+=============================
+
+4.1 FLAN-T5 Small: Schema Model
+-------------------------------
+
+Default configuration:
+
+SCHEMA_MODEL=google/flan-t5-small
+
+FLAN-T5 is a text-to-text Transformer.
+
+Input:
+
+Natural-language database requirement
+
+Output:
+
+JSON containing:
+
+- A short title
+- Tables
+- Columns
+- Data types
+- Primary keys
+- Foreign keys
+- Relationships
+- A brief schema explanation
+
+The request is constructed by schema_from_transformer() in
+backend/nlp-service.py.
+
+Why FLAN-T5 Small is used:
+
+- It is instruction-tuned
+- It can follow JSON-generation instructions
+- It has a moderate model size
+- It is suitable for lower-memory machines
+- It can be replaced through environment variables
+- It provides semantic flexibility that fixed templates do not have
+
+The returned JSON is validated before use. The project checks:
+
+- Tables are grounded in the prompt
+- Flight prompts contain required flight entities
+- Railway prompts do not silently become unrelated schemas
+- Bank prompts do not return non-banking tables
+- Every relationship points to an existing table
+- At least one valid table exists
+
+If validation or model loading fails, DBMentor switches to infer_schema().
+
+
+4.2 FLAN-T5 Small: Story Model
+------------------------------
+
+Default configuration:
+
+STORY_MODEL=google/flan-t5-small
+
+This model is configured for SQL-to-English generation.
+However, the normal runtime story route deliberately uses structure-based rules
+instead of the generative model.
+
+The rule-based explanation is used because:
+
+- Generated SQL may omit clauses
+- A Transformer may hallucinate absent clauses
+- The UI should explain only actual SQL
+- Rules can reliably detect SELECT, WHERE, JOIN, GROUP BY, HAVING,
+  ORDER BY, LIMIT, and OFFSET
+
+The configured story model exists but is not the default explanation engine.
+
+
+4.3 T5-LM-Large Text-to-SQL Spider Model
+----------------------------------------
+
+Default configuration:
+
+SQL_MODEL=gaussalgo/T5-LM-Large-text2sql-spider
+SQL_MODEL_TYPE=spider_seq2seq
+
+This model is a seq2seq Transformer fine-tuned for Spider-style text-to-SQL work.
+
+Input format:
+
+Question: List all customers
+Schema: "customers" "id" int "name" text [SEP]
+
+The model output is SQL, for example:
+
+SELECT customers.name
+FROM customers;
+
+Why this model is used:
+
+- It understands natural-language questions
+- It is trained on database-schema and SQL examples
+- It generates SQL rather than only matching keywords
+- It supports conditional and join-oriented questions
+- It accepts explicit active-schema serialization
+
+The project does not claim that this model is the SADGA+GAP architecture.
+SADGA+GAP mode is recognized but cannot be executed by the generic Hugging Face
+seq2seq loader.
+
+
+4.4 SQL validation and cache
+----------------------------
+
+Generated SQL is only accepted if:
+
+- It starts with SELECT
+- Referenced tables exist in the active schema
+- Aliases resolve to real tables
+- Referenced columns exist
+- Relationships are valid
+
+SQL results are cached using:
+
+Normalized question + serialized active schema
+
+The cache holds up to ten results and remains in memory for the running Python
+service.
+
+
+4.5 RoBERTa-Base NER Model
+--------------------------
+
+The training pipeline in backend/schema_training/train_ner.py fine-tunes
+roberta-base for token classification.
+
+Labels:
+
+- O
+- B-ENTITY
+- I-ENTITY
+- B-ATTRIBUTE
+- I-ATTRIBUTE
+
+Example:
+
+Passengers -> B-ENTITY
+book       -> O
+tickets    -> B-ENTITY
+for        -> O
+trains     -> B-ENTITY
+
+Why RoBERTa is used:
+
+- It provides strong contextual word representations
+- It works well for token classification
+- It is less expensive to fine-tune than large generative models
+- It can identify entities and attributes separately
+- It captures context from the complete requirement
+
+Training details:
+
+- Maximum sequence length: 256 tokens
+- Training batch size: 8
+- Learning rate: 5e-5
+- Default epochs: 5
+- 80/20 train-validation split
+- Class-weighted cross-entropy
+- Token accuracy evaluation
+- One latest checkpoint retained
+
+Class weighting is used because O, or “no entity,” naturally dominates token
+counts.
+
+
+4.6 RoBERTa-Base Relation Classification Model
+----------------------------------------------
+
+The training pipeline in backend/schema_training/train_relations.py fine-tunes
+another roberta-base model for sequence classification.
+
+It receives a sentence with entity markers:
+
+[E1] passengers [/E1] book tickets for [E2] trains [/E2]
+
+It predicts labels such as:
+
+- BOOKS
+- OWNS
+- HAS
+- BELONGS_TO
+- ASSIGNED_TO
+- NO_RELATION
+
+Why sequence classification is used:
+
+Entity relationships are sentence-level decisions.
+
+Instead of asking a generative model to create a relationship, the model chooses
+a controlled label from a fixed vocabulary.
+
+This provides:
+
+- Controlled labels
+- More deterministic behavior
+- Easier validation
+- Lower inference cost
+- Easier performance measurement
+
+The model uses macro-F1 and stratified validation because relationship labels
+may not be evenly distributed.
+
+This standalone pipeline is in backend/schema_nlp.py.
+It is an additional schema-extraction component, while the default runtime
+primarily uses rules and the FLAN-T5 pipelines.
+
+
+5. SCHEMA-GENERATION AND FALLBACK LOGIC
+=======================================
+
+The /schema/generate endpoint is handled in backend/nlp-service.py.
+
+Decision order:
+
+MODEL_BACKEND=transformers?
+        |
+        +-- Yes: Try FLAN-T5
+        |         |
+        |         +-- Valid JSON and valid domain -> Transformer schema
+        |         |
+        |         +-- Failure -> Rules fallback
+        |
+        +-- No: Rules fallback
+
+
+5.1 Rules-only schema engine
+----------------------------
+
+The rules engine recognizes:
+
+- Banking
+- Railway
+- Flight
+- Library
+- School
+- Store
+- Custom generic schemas
+
+It uses:
+
+- Keyword detection
+- Entity candidates
+- Attribute patterns
+- Domain templates
+- Foreign-key inference
+- Table naming rules
+- Primary-key generation
+- Relationship-edge construction
+
+Why rules are included:
+
+- The application remains usable without internet access
+- It works when Hugging Face downloads fail
+- It works on low-memory systems
+- It provides predictable domain schemas
+- It is deterministic and quick
+
+
+6. SCHEMA-GENERATION WORKFLOW
+=============================
+
+Step 1: User enters a requirement
+---------------------------------
+
+The workspace is src/routes/workspace.jsx.
+
+The user chooses:
+
+- Scenario: enter plain English
+- Paste DDL: enter existing PostgreSQL definitions
+
+
+Step 2: Frontend calls the API
+------------------------------
+
+Scenario input sends:
+
+{
+  "prompt": "A bank has clients, accounts and transactions..."
+}
+
+The request goes to:
+
+POST /api/v1/schema/generate
+
+The frontend helper is generateSchemaFromApi() in src/lib/dbmentor.js.
+
+
+Step 3: Express validates the prompt
+------------------------------------
+
+Express:
+
+- Requires a non-empty string
+- Sends it to the Python NLP service
+- Adds a request ID
+- Applies a model timeout
+- Logs structured JSON
+
+The default NLP timeout is 300 seconds.
+
+
+Step 4: Python generates or infers a schema
+-------------------------------------------
+
+Transformer mode:
+
+Prompt
+  -> FLAN-T5 schema model
+  -> JSON extraction
+  -> Grounding validation
+  -> Normalized schema object
+
+Fallback mode:
+
+Prompt
+  -> Domain detection
+  -> Rules lookup
+  -> Table and relationship definitions
+
+
+Step 5: DDL is generated
+-------------------------
+
+schema_sql() converts the JSON schema into SQL:
+
+CREATE TABLE passengers (
+  id INTEGER PRIMARY KEY,
+  name TEXT,
+  email TEXT
+);
+
+Foreign-key columns receive REFERENCES clauses where applicable.
+
+
+Step 6: Express creates a PostgreSQL schema
+-------------------------------------------
+
+A UUID identifies the generated schema.
+
+The PostgreSQL schema name becomes:
+
+dbmentor_<uuid-without-hyphens>
+
+For example:
+
+dbmentor_8e0f2d6d3b9e4f6e9ed9c5d6ce3bbde1
+
+Every generated project receives a separate PostgreSQL namespace.
+
+
+Step 7: Tables are created transactionally
+-------------------------------------------
+
+The API:
+
+- Starts a transaction
+- Creates the schema
+- Creates the tables
+- Inserts five sample rows per table
+- Deactivates previously active schemas
+- Saves the new schema in the schema registry
+- Commits the transaction
+
+If an SQL operation fails, all changes are rolled back.
+
+
+Step 8: Sample rows are generated
+---------------------------------
+
+There is no AI sample-data model.
+
+The project creates deterministic illustrative values based on:
+
+- Column name
+- Column type
+- Primary key
+- Foreign key
+- UUID
+- Boolean
+- Date/time
+- Numeric
+- Text
+
+Examples:
+
+- Email columns receive example addresses
+- Status columns receive active or pending
+- Numeric columns receive incremental values
+- Foreign keys reference existing sample rows
+- JSON columns receive {"sample": rowIndex}
+
+
+Step 9: The active schema is returned
+-------------------------------------
+
+The response includes:
+
+- schema
+- schemaId
+- database
+- sampleResult
+- engine
+
+The frontend stores the schema in localStorage.
+
+The key is:
+
+dbmentor.schema
+
+This allows the schema to survive page reloads and remain synchronized between
+routes.
+
+
+7. DDL IMPORT WORKFLOW
+======================
+
+Step 1: User pastes DDL
+-----------------------
+
+The workspace supports direct PostgreSQL DDL import.
+
+Example:
+
+CREATE TABLE customers (
+  id INTEGER PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE orders (
+  id INTEGER PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id),
+  total NUMERIC
+);
+
+
+Step 2: Express parses the DDL
+------------------------------
+
+Express uses pgsql-ast-parser.
+
+The parser:
+
+- Rejects non-table statements
+- Allows limited table constraints
+- Normalizes identifiers
+- Supports common PostgreSQL types
+- Detects duplicate tables and columns
+- Extracts primary and foreign keys
+- Detects cyclic foreign-key dependencies
+- Orders tables based on dependencies
+
+
+Step 3: DDL is converted to the internal schema
+-----------------------------------------------
+
+The DDL is converted into the same internal schema representation used for
+generated schemas.
+
+
+Step 4: Express creates PostgreSQL tables
+-----------------------------------------
+
+Express creates the isolated PostgreSQL schema and inserts sample rows.
+
+Importing DDL is safer than executing raw pasted SQL because only supported
+CREATE TABLE statements are accepted.
+
+
+8. ER DIAGRAM WORKFLOW
+======================
+
+When a schema is loaded, src/components/ErCanvas.jsx creates an interactive
+canvas.
+
+
+8.1 Layout
+----------
+
+The canvas:
+
+- Uses three columns for larger schemas
+- Centers single-table layouts
+- Calculates card heights from column count
+- Generates connection lines
+- Resizes according to viewport width
+- Allows dragging and keyboard movement
+- Supports zoom from 50% to 200%
+
+
+8.2 Relationships
+-----------------
+
+Each relationship is drawn as:
+
+- A line
+- Two end circles
+- A 1..N or custom cardinality label
+- Dimmed content when another table is hovered
+
+
+8.3 Schema explanation
+----------------------
+
+The explainSchema() function in src/lib/dbmentor.js translates JSON into plain
+English:
+
+- Table purpose
+- Column meanings
+- Primary-key explanations
+- Foreign-key targets
+- Cardinality explanations
+- Table and relationship summaries
+
+This allows users to see both the generated structure and why it is structured
+that way.
+
+
+9. NATURAL-LANGUAGE-TO-SQL WORKFLOW
+===================================
+
+The NL-to-SQL page is src/routes/nl-query.jsx.
+
+
+Step 1: Active schema loading
+-----------------------------
+
+The route:
+
+1. Checks browser local storage
+2. Loads the cached schema immediately
+3. Calls /api/v1/schema/active
+4. Replaces the cache with the server's active schema
+5. Displays synchronization errors if loading fails
+
+
+Step 2: User asks a question
+----------------------------
+
+Example questions:
+
+- Show customer names
+- How many orders are there?
+- List flights above 500
+- Which passengers have no bookings?
+- Latest orders
+
+
+Step 3: Express sends the question and schema
+---------------------------------------------
+
+POST /api/v1/sql/generate
+
+{
+  "question": "...",
+  "schema": { ... }
+}
+
+
+Step 4: Python tries Transformer SQL generation
+-----------------------------------------------
+
+The model:
+
+- Serializes every table
+- Serializes every column
+- Serializes primary keys
+- Serializes foreign keys
+- Creates a Question/Schema prompt
+- Generates SQL
+- Extracts the first SELECT
+- Removes malformed whitespace
+- Normalizes line breaks
+- Adds a terminating semicolon
+
+
+Step 5: SQL validation
+----------------------
+
+The generated SQL is checked against:
+
+- Active table names
+- Active column names
+- Aliases
+- The SELECT-only requirement
+
+If validation fails, it falls back to rules.
+
+
+Step 6: Rules fallback planner
+------------------------------
+
+The rules planner in english_to_sql():
+
+1. Finds table names in the question
+2. Finds matching column names
+3. Determines explicit and implicit tables
+4. Creates a graph from foreign keys
+5. Finds the shortest relationship path
+6. Builds JOIN clauses
+7. Chooses selected columns
+8. Handles count queries
+9. Handles numeric comparisons
+10. Handles text comparisons
+11. Handles negated relationships
+12. Handles grouping
+13. Handles latest/recent sorting
+14. Handles LIMIT
+
+Why a rules fallback is useful:
+
+- It is schema-aware
+- It is deterministic
+- It is fast
+- It is verifiable
+- It is less dependent on downloads
+- It is suitable for beginner-level SQL queries
+
+
+Step 7: SQL cache
+-----------------
+
+The final SQL result is cached before being sent to the frontend.
+
+
+10. SQL EXPLANATION WORKFLOW
+============================
+
+After SQL generation, the frontend calls:
+
+POST /api/v1/sql/explain
+
+Express forwards the SQL and question to the Python service.
+
+
+10.1 Rule-based explanation
+---------------------------
+
+The explanation is generated from the actual SQL syntax.
+
+It detects and explains:
+
+- SELECT
+- DISTINCT
+- COUNT
+- SUM
+- AVG
+- MIN
+- MAX
+- FROM
+- JOIN
+- LEFT JOIN
+- ON
+- WHERE
+- GROUP BY
+- HAVING
+- ORDER BY
+- LIMIT
+- OFFSET
+
+The page converts explanations into numbered cards.
+
+This prevents the explanation from claiming that absent clauses exist.
+
+
+10.2 Heuristic query-plan display
+---------------------------------
+
+The Node API also returns:
+
+- A parsed SQL structure
+- Optimization hints
+- A simplified execution plan
+
+The plan is heuristic and educational.
+It is not generated by PostgreSQL EXPLAIN.
+
+Examples:
+
+- SELECT * receives an I/O warning
+- Leading wildcard LIKE receives a trigram-index suggestion
+- ORDER BY without LIMIT receives a Top-N suggestion
+- Joins receive join-index hints
+
+These hints support learning rather than replacing a real PostgreSQL execution
+plan analyzer.
+
+
+11. QUERY EXECUTION WORKFLOW
+============================
+
+Step 1: User edits SQL
+----------------------
+
+The SQL editor is src/components/SqlEditor.jsx.
+
+It includes:
+
+- A SQL entry textarea
+- Syntax highlighting
+- A run action
+- Busy state
+- Execution errors
+
+The pending NL-generated query is passed through sessionStorage.
+
+
+Step 2: Frontend executes SQL
+-----------------------------
+
+The request includes:
+
+{
+  "sql": "SELECT * FROM customers;",
+  "schemaId": "..."}
+
+
+Step 3: Express validates SQL
+-----------------------------
+
+safeSelect() requires:
+
+- One statement
+- SQL starts with SELECT
+- No mutation keywords
+- No semicolon separators
+- No administrative statements
+
+Blocked keywords include:
+
+- INSERT
+- UPDATE
+- DELETE
+- DROP
+- ALTER
+- CREATE
+- VACUUM
+- ATTACH
+- PRAGMA
+
+This prevents accidental or malicious modification.
+
+
+Step 4: PostgreSQL isolation
+----------------------------
+
+Express:
+
+- Starts a transaction
+- Sets it to read-only mode
+- Sets search_path to the generated schema
+- Executes the query
+- Commits the transaction
+- Releases the connection
+
+The schema is isolated using a UUID-derived schema name.
+
+
+Step 5: Results are returned
+----------------------------
+
+The response contains:
+
+- Column names
+- Row arrays
+- SQL text
+- Execution duration
+- PostgreSQL execution label
+
+src/components/ResultsGrid.jsx converts the result into a visual table.
+
+
+12. TRAINING WORKFLOW
+=====================
+
+The training material is in backend/schema_training/.
+
+
+12.1 Dataset generation
+-----------------------
+
+generate_dataset.py creates synthetic examples across:
+
+- Banking
+- Railway
+- Healthcare
+- Education
+- Retail
+- Logistics
+- Hospitality
+- Human resources
+- Manufacturing
+
+The default generation produces:
+
+- 2,160 NER examples
+- 1,620 relation examples
+
+These are bootstrapping examples, not production-quality annotations.
+
+
+12.2 NER training
+-----------------
+
+Command:
+
+python backend/schema_training/train_ner.py \
+  --data generated/ner.jsonl \
+  --output models/schema-ner \
+  --cache-dir E:/huggingface-cache
+
+The model learns entity and attribute boundaries.
+
+
+12.3 Relation training
+----------------------
+
+Command:
+
+python backend/schema_training/train_relations.py \
+  --data generated/relations.jsonl \
+  --output models/schema-relations \
+  --cache-dir E:/huggingface-cache
+
+The model learns relationship labels between entity pairs.
+
+
+12.4 Extracting a schema
+------------------------
+
+SchemaNlpPipeline in backend/schema_nlp.py:
+
+1. Tokenizes the requirement
+2. Runs the NER model
+3. Identifies entities and attributes
+4. Builds entity pairs
+5. Limits pair distance
+6. Runs the relation model
+7. Accepts relationships above the confidence threshold
+8. Returns entities and relationships as intermediate JSON
+
+The default confidence threshold is 0.75.
+
+
+13. END-TO-END EXAMPLE
+=====================
+
+Suppose the user enters:
+
+A railway system tracks passengers, trains and tickets.
+Passengers book tickets for trains.
+
+The complete flow is:
+
+1. React workspace captures the prompt
+2. Frontend posts to Express
+3. Express calls the Python /generate endpoint
+4. FLAN-T5 or rules selects the railway domain
+5. Python creates:
+   - passengers
+   - trains
+   - stations
+   - routes
+   - schedules
+   - bookings
+6. Python creates primary and foreign-key columns
+7. It generates PostgreSQL DDL
+8. Express creates dbmentor_<uuid>
+9. Express creates tables and sample records
+10. Express stores the schema as active
+11. React receives the schema
+12. React stores it in localStorage
+13. ErCanvas displays table cards and relationships
+14. The user asks:
+    "How many passengers are on each train?"
+15. Python serializes the schema and uses:
+    - The Spider T5 model, or
+    - The rules-based SQL planner
+16. SQL is validated against known tables and columns
+17. The SQL explanation route describes the clauses
+18. The user executes the SQL
+19. Express validates that it is SELECT-only
+20. PostgreSQL runs it in read-only transaction mode
+21. ResultsGrid displays the output
+
+
+14. KEY DESIGN DECISIONS
+========================
+
+Separate Node and Python services
+---------------------------------
+
+Reason:
+
+- Node is strong for HTTP, middleware, transactions, and PostgreSQL
+- Python is strong for model training and Hugging Face inference
+- They can scale, restart, or be deployed independently
+
+
+PostgreSQL for real execution
+-----------------------------
+
+Reason:
+
+- Generated SQL should be real SQL
+- The system needs real tables and real result sets
+- Browser-only SQL is not enough for a database-learning workflow
+
+
+Isolated schemas per generated database
+----------------------------------------
+
+Reason:
+
+- Prevents generated projects from overwriting each other
+- Keeps active and historical schemas separate
+- Allows refresh and reload
+- Makes data execution predictable
+
+
+Rules and AI models together
+----------------------------
+
+Reason:
+
+- AI adds semantic flexibility
+- Rules provide reliability and deterministic fallback
+- The application works even if the model is unavailable
+- Generated SQL can be validated before execution
+
+
+Lazy model loading
+------------------
+
+Reason:
+
+- Large models consume significant memory
+- Model downloads should not block backend startup
+- Independent tasks can load different models
+- Model errors remain visible under /health
+
+
+SELECT-only execution
+---------------------
+
+Reason:
+
+- Protect the learning database
+- Prevent accidental destructive statements
+- Keep query execution isolated
+- Make the application suitable for interactive practice
+
+
+Structured logging
+------------------
+
+Reason:
+
+- Requests include an identifiable x-request-id
+- SQL text and credentials are not logged
+- API and NLP latency is measurable
+- Health and fallback status remain observable
+
+
+15. MAIN LIMITATIONS
+====================
+
+- The 2,160/1,620 synthetic seed examples are not enough for production-grade
+  schema extraction.
+- The Transformer-generated schema is probabilistic and validated only against
+  a limited set of requirements.
+- The text-to-SQL model can still hallucinate joins or unsupported SQL features.
+- The generated execution plan is not PostgreSQL EXPLAIN ANALYZE.
+- The fine-tuned RoBERTa pipeline is separate from the default runtime unless
+  explicitly integrated.
+- The story Transformer is currently unused because the rules-based explanation
+  is more reliable.
+- SADGA+GAP is not implemented.
+- Sample data is deterministic rather than semantically real.
+- The API does not implement authentication or row-level authorization.

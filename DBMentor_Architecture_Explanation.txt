@@ -1,0 +1,302 @@
+DBMentor Architecture Diagram Explanation
+==========================================
+
+Diagram
+-------
+
+React + TanStack frontend
+http://localhost:8080
+          |
+          | HTTP JSON
+          v
+Express Node API
+http://127.0.0.1:8000
+  - Validates HTTP requests
+  - Calls the NLP service
+  - Persists schemas
+  - Executes read-only SELECT queries
+          |
+          +---------------- HTTP ----------------+
+          |                                      |
+          v                                      v
+Python NLP service                     PostgreSQL
+http://127.0.0.1:8001                 docker-compose
+  - Schema generation                   port 5432
+  - Natural-language SQL
+  - SQL explanations and fallbacks
+
+
+1. React + TanStack Frontend
+============================
+
+The React frontend is the user-facing layer.
+
+It provides:
+
+- Schema requirement input
+- DDL import
+- ER diagram rendering
+- Natural-language question input
+- SQL editing
+- Query result display
+- Schema and query explanations
+
+The browser sends requests as JSON to the Express API, for example:
+
+POST http://127.0.0.1:8000/api/v1/schema/generate
+POST http://127.0.0.1:8000/api/v1/sql/generate
+POST http://127.0.0.1:8000/api/v1/sql/execute
+
+TanStack Router manages navigation between:
+
+- /workspace
+- /nl-query
+- /query-lab
+
+TanStack Start integrates React with the Vite build system and application
+routing.
+
+The frontend only sends and displays data. It does not directly call the Python
+NLP service or execute SQL.
+
+
+2. Express Node API
+===================
+
+Express is the central backend and security boundary.
+
+It receives requests from React and performs several responsibilities.
+
+
+2.1 Request validation
+----------------------
+
+Express validates required fields, including:
+
+- A non-empty prompt for schema generation
+- A non-empty question for SQL generation
+- A valid schemaId for SQL execution
+- SQL that contains only a single SELECT statement
+
+
+2.2 NLP communication
+---------------------
+
+For schema or SQL work, Express sends an internal HTTP request to the Python
+service:
+
+POST http://127.0.0.1:8001/generate
+
+Example payload:
+
+{
+  "task": "schema",
+  "prompt": "A railway system manages passengers and trains"
+}
+
+
+2.3 PostgreSQL persistence
+--------------------------
+
+Express:
+
+- Creates isolated database schemas
+- Creates tables
+- Inserts sample rows
+- Stores schema definitions
+- Changes the active schema
+- Restores active schemas after application reload
+
+
+2.4 Query execution
+-------------------
+
+Before executing SQL, Express:
+
+1. Rejects multi-statement SQL
+2. Rejects mutations and administrative statements
+3. Starts a PostgreSQL transaction
+4. Enables read-only transaction mode
+5. Selects the generated schema
+6. Executes the SQL
+7. Returns column names and rows
+
+The browser never receives direct PostgreSQL credentials or direct database access.
+
+
+3. Python NLP Service
+=====================
+
+The Python service converts language into structured database information.
+
+
+3.1 Schema generation
+---------------------
+
+Given a requirement such as:
+
+A railway system tracks passengers, trains and tickets.
+
+The service produces a JSON structure containing:
+
+- Table names
+- Columns
+- Column types
+- Primary keys
+- Foreign keys
+- Relationships
+- A plain-English explanation
+
+It may use:
+
+- google/flan-t5-small
+- Domain-specific rules
+- A generic rules-based schema builder
+- A fallback domain model
+
+
+3.2 Natural-language SQL generation
+-----------------------------------
+
+Given a question such as:
+
+How many passengers booked tickets?
+
+The service receives the active schema and generates SQL.
+
+It may use:
+
+- gaussalgo/T5-LM-Large-text2sql-spider
+- A schema-aware rules planner
+
+The rules planner is especially useful when:
+
+- The language model is unavailable
+- The machine has insufficient memory
+- The model download fails
+- A deterministic SQL result is preferred
+
+
+3.3 SQL explanations
+--------------------
+
+The Python service or its rules-based fallback explains each SQL clause:
+
+- SELECT
+- FROM
+- JOIN
+- ON
+- WHERE
+- GROUP BY
+- ORDER BY
+- LIMIT
+
+The explanation is based on the SQL that actually exists, reducing hallucinated
+clauses.
+
+
+4. PostgreSQL
+=============
+
+PostgreSQL is the actual database engine.
+
+It runs in Docker as:
+
+Host: 127.0.0.1
+Port: 5432
+Database: dbmentor
+User: dbmentor
+Password: dbmentor
+
+It stores:
+
+- A schema registry
+- Active and historical schema JSON
+- Generated tables
+- Imported tables
+- Sample rows
+- Query data
+
+Each generated workspace receives an isolated PostgreSQL schema:
+
+dbmentor_<uuid-without-hyphens>
+
+For example:
+
+dbmentor_8e0f2d6d3b9e4f6e9ed9c5d6ce3bbde1
+
+Inside that schema, PostgreSQL may create:
+
+CREATE TABLE passengers (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    email TEXT
+);
+
+PostgreSQL is responsible for:
+
+- Validating SQL syntax
+- Enforcing table structures
+- Executing joins
+- Performing aggregates
+- Applying filters
+- Ordering and limiting results
+- Running transactions
+
+
+5. Complete Schema-Generation Flow
+==================================
+
+User enters a requirement
+          |
+          v
+React frontend
+          |
+          | POST /api/v1/schema/generate
+          v
+Express API
+          |
+          | POST NLP task "schema"
+          v
+Python NLP service
+          |
+          | Schema JSON + DDL
+          v
+Express API
+          |
+          | PostgreSQL CREATE TABLE statements
+          v
+PostgreSQL
+          |
+          | Active schema and sample rows
+          v
+Express API
+          |
+          | JSON response
+          v
+React frontend
+          |
+          v
+ER diagram and DDL are displayed
+
+
+6. Complete Query Flow
+======================
+
+React question
+    -> Express API
+    -> Python NLP model or rules
+    -> Generated SQL
+    -> Express validates tables and columns
+    -> PostgreSQL executes the SQL
+    -> Express returns rows
+    -> React displays the results
+
+
+Key responsibility split
+========================
+
+- React presents and coordinates the user interface
+- Express validates, stores, secures, and routes requests
+- Python interprets natural language
+- PostgreSQL processes real database data
